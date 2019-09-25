@@ -1,121 +1,118 @@
-import React from "react";
-import { shallow } from "enzyme";
+import React from 'react';
+import { cleanup, fireEvent } from 'react-testing-library';
+import { renderWithRouter } from 'test-utils';
+import { score } from '../score-context';
+import { Question } from '../components/Question';
+import rawBooks from '../data';
+import { initializeBooks } from '../helpers/helpers';
 
-import Question from "../components/Question";
+const books = initializeBooks(rawBooks);
+const updateScore = jest.fn();
 
-const question = {
-  question: "How many expressions are in the following statement: a = b * 2; ?",
-  orderedById: true,
-  answers: [
-    { text: "one", id: 0 },
-    { text: "two", id: 1 },
-    { text: "three", id: 2 },
-    { text: "four", id: 3 }
-  ],
-  correctAnswerId: 3,
-  explanation:
-    "explain why other answers are wrong and why this answer is the best answer"
-};
-const baseUrl = "/up-going/ch1";
-const index = 1;
-const numberOfQuestions = 6;
+function generateTestProps({ bkIndex, chIndex, qIndex }) {
+  const chapter = books[bkIndex].chapters[chIndex];
+  const question = chapter.questions[qIndex];
+  return {
+    question: question,
+    index: qIndex + 1,
+    bookId: bkIndex,
+    baseUrl: '/test',
+    chapterId: chIndex,
+    numberOfQuestions: chapter.questions.length,
+    score,
+    updateScore,
+  };
+}
 
-const test_props = { question, baseUrl, index, numberOfQuestions };
+const testProps0 = generateTestProps({ bkIndex: 0, chIndex: 0, qIndex: 0 });
+const testProps1 = generateTestProps({ bkIndex: 3, chIndex: 1, qIndex: 0 });
 
-it("should render question", () => {
-  const comp = shallow(<Question {...test_props} />);
-
+it('should render question 1', () => {
+  const { getByText, getByTestId } = renderWithRouter(
+    <Question {...testProps0} />
+  );
   expect(
-    comp
-      .find("h3")
-      .at(0)
-      .text()
-  ).toBe("Question 1 of 6");
-  expect(
-    comp
-      .find("h4")
-      .at(0)
-      .text()
-  ).toBe("How many expressions are in the following statement: a = b * 2; ?");
-  expect(comp.find("label").length).toBe(4);
-  expect(comp.find('input[type="radio"]').length).toBe(4);
-  expect(comp.find("span").length).toBe(4);
-  expect(
-    comp
-      .find("span")
-      .at(0)
-      .text()
-  ).toBe("one");
-  expect(
-    comp
-      .find("span")
-      .at(1)
-      .text()
-  ).toBe("two");
-  expect(
-    comp
-      .find("span")
-      .at(2)
-      .text()
-  ).toBe("three");
-  expect(
-    comp
-      .find("span")
-      .at(3)
-      .text()
-  ).toBe("four");
-  expect(comp.find("button").length).toBe(1);
-  expect(comp.find("NavigationButton").length).toBe(2);
+    getByText(`Question 1 of ${testProps0.numberOfQuestions}`)
+  ).toBeTruthy();
+  expect(getByTestId('question')).toBeTruthy();
 });
 
-it("should set answer state", () => {
-  const comp = shallow(<Question {...test_props} />);
-  expect(comp.instance().state.userAnswerIndex).toBeNull();
-  comp.instance().handleAnswerChange({ target: { value: 2 } });
-  expect(comp.instance().state.userAnswerIndex).toBe(2);
+it('should render question 2', () => {
+  const { getByText, getByTestId, queryAllByTestId } = renderWithRouter(
+    <Question {...testProps1} />
+  );
+  expect(
+    getByText(`Question 1 of ${testProps1.numberOfQuestions}`)
+  ).toBeTruthy();
+  expect(getByTestId('question')).toBeTruthy();
+  expect(queryAllByTestId('answer')).toHaveLength(
+    testProps1.question.answers.length
+  );
+  expect(getByText('Submit')).toBeTruthy();
 });
 
-it("should set error on submit if answer not selected", () => {
-  const comp = shallow(<Question {...test_props} />);
-  expect(comp.instance().state.error).toBe(false);
-  comp.instance().handleSubmit({
-    preventDefault: () => {}
-  });
-  expect(comp.instance().state.error).toBe(true);
+it('should set error on submit if answer not selected', () => {
+  const { queryByText, getByText } = renderWithRouter(
+    <Question {...testProps0} />
+  );
+  expect(queryByText('Please select an answer')).toBeNull();
+  fireEvent.click(getByText('Submit'));
+  expect(queryByText('Please select an answer')).toBeTruthy();
 });
 
-it("should set correct answer to green on submit", () => {
-  const comp = shallow(<Question {...test_props} />);
-  comp.instance().handleAnswerChange({ target: { value: 3 } });
-  comp.instance().handleSubmit({ preventDefault: () => {} });
-  expect(comp.instance().state.error).toBe(false);
-  expect(comp.instance().state.userAnswerIndex).toBe(3);
-  expect(comp.instance().props.question.correctAnswerId).toBe(3);
-  return Promise.resolve().then(() => {
-    comp.update();
-    expect(
-      comp
-        .find("span")
-        .at(3)
-        .html()
-    ).toMatch(/color:green/);
-  });
+it('should show "Correct!" when correct answer submitted', () => {
+  const { queryByText, getByTestId, getByText } = renderWithRouter(
+    <Question {...testProps0} />
+  );
+  fireEvent.click(
+    getByTestId(`answer-${testProps0.question.correctAnswerId}`),
+    { button: 0 }
+  );
+  fireEvent.click(getByText('Submit'));
+  expect(queryByText('Please select an answer')).toBeNull();
+  expect(queryByText('Correct!')).toBeTruthy();
 });
 
-it("should set incorrect answer to red and correct answer to green on submit", () => {
-  const comp = shallow(<Question {...test_props} />);
-  comp.instance().handleAnswerChange({ target: { value: 3 } });
-  comp.instance().handleSubmit({ preventDefault: () => {} });
-  expect(comp.instance().state.error).toBe(false);
-  expect(comp.instance().state.userAnswerIndex).toBe(3);
-  expect(comp.instance().state.answerSubmitted).toBe(true);
-  return Promise.resolve().then(() => {
-    comp.update();
-    expect(
-      comp
-        .find("span")
-        .at(3)
-        .html()
-    ).toMatch(/color:green/);
-  });
+it('should show "Incorrect" when incorrect answer is submitted', () => {
+  const correctIndex = testProps0.question.correctAnswerId;
+  const incorrectIndex =
+    testProps0.question.answers.length % (correctIndex + 1);
+  const { queryByText, getByTestId, getByText } = renderWithRouter(
+    <Question {...testProps0} />
+  );
+  fireEvent.click(getByTestId(`answer-${incorrectIndex}`));
+  fireEvent.click(getByText('Submit'));
+  expect(queryByText('Please select an answer')).toBeNull();
+  expect(queryByText('Incorrect! Try Again!')).toBeTruthy();
 });
+
+it("should render 'Show Explanation' button on submit", () => {
+  const correctIndex = testProps0.question.correctAnswerId;
+  const incorrectIndex =
+    testProps0.question.answers.length % (correctIndex + 1);
+  const { queryByText, getByTestId, getByText } = renderWithRouter(
+    <Question {...testProps0} />
+  );
+  fireEvent.click(getByTestId(`answer-${incorrectIndex}`));
+  fireEvent.click(getByText('Submit'));
+  expect(queryByText('Please select an answer')).toBeNull();
+  expect(queryByText('Show Explanation')).toBeTruthy();
+});
+
+it("should toggle explanation when 'Show Explanation' and 'Hide Explanation' is clicked", () => {
+  const correctIndex = testProps0.question.correctAnswerId;
+  const incorrectIndex =
+    testProps0.question.answers.length % (correctIndex + 1);
+  const { queryByText, getByTestId, getByText } = renderWithRouter(
+    <Question {...testProps0} />
+  );
+  fireEvent.click(getByTestId(`answer-${incorrectIndex}`));
+  fireEvent.click(getByText('Submit'));
+  fireEvent.click(getByText('Show Explanation'));
+  getByTestId('explanation');
+  expect(queryByText('Hide Explanation')).toBeTruthy();
+  fireEvent.click(getByText('Hide Explanation'));
+  expect(queryByText('explanation')).toBeNull();
+});
+
+afterEach(cleanup);

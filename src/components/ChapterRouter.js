@@ -1,53 +1,53 @@
-import React, { Component } from "react";
-import { Link, Route, Switch } from "react-router-dom";
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
+import { Route, Switch } from 'react-router-dom';
 import NoMatch from './NoMatch';
-import ChapterHome from "./ChapterHome";
-import Question from "./Question";
-import NoQuestions from "./NoQuestions";
-
+import ChapterHome from './ChapterHome';
+import Question from './Question';
+import { ScoreContext } from '../score-context';
 
 class ChapterRouter extends Component {
+  static propTypes = {
+    bookId: PropTypes.number.isRequired,
+    bookUrl: PropTypes.string.isRequired,
+    chapter: PropTypes.object.isRequired,
+    chapterId: PropTypes.number.isRequired,
+  };
   render() {
-    const { chapter, bookUrl } = this.props;
-
+    const { chapter, bookUrl, bookId, chapterId } = this.props;
     let displayQuestions;
     let chapterPath = bookUrl + chapter.url;
 
-    if (chapter.questions) {
-      displayQuestions = chapter.questions.map((question, index) => {
+    displayQuestions = chapter.questions.map((question, index) => {
+      let questionPath = `${chapterPath}/q${index + 1}`;
 
-        let questionPath = chapterPath + "/q" + (index + 1);
-
-        return (
-          <div key={questionPath}>
-            <Route 
-              path={questionPath}
-              render={() => (
+      return (
+        <Route
+          key={questionPath}
+          path={questionPath}
+          render={() => (
+            <ScoreContext.Consumer>
+              {({ score, updateScore }) => (
                 <Question
+                  bookId={bookId}
+                  chapterId={chapterId}
                   baseUrl={chapterPath}
                   index={index + 1}
                   question={question}
                   numberOfQuestions={chapter.questions.length}
+                  score={score}
+                  updateScore={updateScore}
                 />
               )}
-            />
-          </div>
-        )
-      });
-    } else {
-      displayQuestions = (
-        <NoQuestions/>
+            </ScoreContext.Consumer>
+          )}
+        />
       );
-    }
+    });
 
     return (
-      <div key={chapterPath}>
-        <Link
-          style={{ textDecoration: "none", color: "black" }}
-          to={chapterPath}
-        >
-          <h3 style={{ fontSize: "24px" }}>{chapter.title}</h3>
-        </Link>
+      <div>
+        <h3 style={{ fontSize: '24px' }}>{chapter.title}</h3>
         <Switch>
           <Route
             exact
@@ -57,7 +57,7 @@ class ChapterRouter extends Component {
             }}
           />
           {displayQuestions}
-          <Route component={NoMatch}/>
+          <Route component={NoMatch} />
         </Switch>
       </div>
     );
